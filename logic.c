@@ -1,5 +1,4 @@
 //Logic.c
-#include"config.h"
 #include"logic.h"
 #include<stdbool.h>
 #include<stdio.h>
