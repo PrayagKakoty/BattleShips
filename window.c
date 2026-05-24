@@ -1,6 +1,7 @@
 //Window.c
 #include"window.h"
 #include<stdio.h>
+#include<stdlib.h>
 #include<SDL2/SDL.h>
 #include<SDL2/SDL_image.h>
 
@@ -10,8 +11,8 @@ enum {
 	TEX_HIT,
 	TEX_MISS,
 	TEX_B2x1V,
-	TEX_B3x2V,
 	TEX_B4x1V,
+	TEX_B3x2V,
 	TEX_B2x1H,
 	TEX_B4x1H,
 	TEX_B3x2H,
@@ -23,13 +24,15 @@ const char texture_files[TEX_LEN][FILE_NAME_LEN] = {
 	"HIT.png",
 	"MISS.png",
 	"B2x1V.png",
-	"B3x2V.png",
 	"B4x1V.png",
+	"B3x2V.png",
 	"B2x1H.png",
-	"B3x2H.png",
 	"B4x1H.png",
+	"B3x2H.png",
 };
+SDL_Window *win;
 SDL_Texture *textures[TEX_LEN];
+SDL_Renderer *ren;
 
 //==============================================================>
 void get_ship_rect(int s, int x, int y, SDL_Rect *rect, int *tex){
@@ -49,7 +52,7 @@ void get_ship_rect(int s, int x, int y, SDL_Rect *rect, int *tex){
 		w*CELL_SIZE, h*CELL_SIZE
 	};
 }
-void disp_hover(SDL_Renderer *ren, int s, int hoverRow, int hoverCol){
+void disp_hover(int s, int hoverRow, int hoverCol){
 	int tex;
 	SDL_Rect rect;
 	if(s==-1){
@@ -64,29 +67,18 @@ void disp_hover(SDL_Renderer *ren, int s, int hoverRow, int hoverCol){
 	}
 	SDL_RenderCopy(ren, textures[tex], NULL, &rect);
 }
-void disp_placed_ship(SDL_Renderer *ren, int s){
-	int h,w,tex;
-	if(ship[s].vert){
-		h = shipType[ship[s].type].height;
-		w = shipType[ship[s].type].width;
-		tex = TEX_B2x1V + ship[s].type;
-	}else{
-		w = shipType[ship[s].type].height;
-		h = shipType[ship[s].type].width;
-		tex = TEX_B2x1H + ship[s].type;
-	}
-	SDL_Rect rect = {
-		ship[s].x*CELL_SIZE + BoardOffset_X, 
-		ship[s].y*CELL_SIZE + BoardOffset_Y, 
-		w*CELL_SIZE, h*CELL_SIZE
-	};
+void disp_placed_ship(int s){
+	int tex;
+	SDL_Rect rect;
+	get_ship_rect(s, ship[s].x, ship[s].y, &rect, &tex);
 	SDL_RenderCopy(ren, textures[tex], NULL, &rect);
 }
-void render_place_ships(SDL_Renderer *ren, int i){
+void render_place_ships(int i){
     SDL_Texture *bg = textures[TEX_BG];
 	SDL_SetRenderDrawColor(ren, 0, 100, 255, 255);
 	SDL_RenderClear(ren);
 	if(bg) SDL_RenderCopy(ren, bg, NULL, NULL);
+
 	//-Rotate-Button-
 	SDL_Rect rotateButton = {
 		RotateButton_X, RotateButton_Y, RotateButtonSize, RotateButtonSize
@@ -95,7 +87,7 @@ void render_place_ships(SDL_Renderer *ren, int i){
 
 	//-Ships-Placed-
 	for(int s = 0; s < i; s++)
-		disp_placed_ship(ren, s);
+		disp_placed_ship(s);
 
 	//-Ship-Hover-
 	if(i<NUM_SHIPS){
@@ -105,18 +97,41 @@ void render_place_ships(SDL_Renderer *ren, int i){
 		   mouseY >= BoardOffset_Y && mouseY < BoardOffset_Y+ROWS*CELL_SIZE){
 			int hoverRow = (mouseY - BoardOffset_Y)/CELL_SIZE;
 			int hoverCol = (mouseX - BoardOffset_X)/CELL_SIZE;
-			disp_hover(ren, i, hoverRow, hoverCol);
+			disp_hover(i, hoverRow, hoverCol);
 		}
 	}
-	disp_grid(ren);
+
+	//-Ship-Info-
+	if(i<NUM_SHIPS){
+		int h,w;
+		int tex;
+		if(ship[i].vert){
+			h = shipType[ship[i].type].height * CELL_SIZE;
+			w = shipType[ship[i].type].width * CELL_SIZE;
+			tex = TEX_B2x1V + ship[i].type;
+		}else{
+			w = shipType[ship[i].type].height * CELL_SIZE;
+			h = shipType[ship[i].type].width * CELL_SIZE;
+			tex = TEX_B2x1H + ship[i].type;
+		}
+
+		int x_offset = (InfoBox_Width - w)/2;
+		int y_offset = (InfoBox_Height - h)/2;
+		SDL_Rect infoBox = {
+			InfoBox_X + x_offset, InfoBox_Y+y_offset, w, h
+		};
+		SDL_RenderCopy(ren, textures[tex], NULL, &infoBox);
+	}
+
+	disp_grid();
 	SDL_RenderPresent(ren);
 }
-void render_play(SDL_Renderer *ren){
+void render_play(){
     SDL_Texture *bg = textures[TEX_BG];
 	SDL_SetRenderDrawColor(ren, 0, 100,255,255);
 	SDL_RenderClear(ren);
 	if(bg) SDL_RenderCopy(ren, bg, NULL, NULL);
-	gen_board(ren);
+	gen_board();
 
 	int mouseX, mouseY;
 	SDL_GetMouseState(&mouseX, &mouseY);
@@ -124,23 +139,20 @@ void render_play(SDL_Renderer *ren){
 	&& mouseY >= BoardOffset_Y && mouseY < BoardOffset_Y + ROWS*CELL_SIZE){
 		int hoverCol = (mouseX - BoardOffset_X)/CELL_SIZE;
 		int hoverRow = (mouseY - BoardOffset_Y)/CELL_SIZE;
-		disp_hover(ren, -1, hoverRow, hoverCol);
+		disp_hover(-1, hoverRow, hoverCol);
 	}
 	SDL_RenderPresent(ren);
 }
 
-void place_ships(SDL_Renderer *ren){
+void place_ships(){
     printf("Entering place_ships()\n");
     SDL_Event e;
 
     int i = 0;
     while(i < NUM_SHIPS){
         while(SDL_PollEvent(&e)){
-            if(e.type == SDL_QUIT) return;
+            if(e.type == SDL_QUIT) exit_game();
             if(e.type == SDL_MOUSEBUTTONDOWN){
-                int x = (e.button.x - BoardOffset_X) / CELL_SIZE;
-                int y = (e.button.y - BoardOffset_Y) / CELL_SIZE;
-
 				if(e.button.x < BoardOffset_X || e.button.x >= (BoardOffset_X+COLS*CELL_SIZE) 
 				|| e.button.y < BoardOffset_Y || e.button.y >= (BoardOffset_Y + ROWS*CELL_SIZE) ){
 					if(e.button.x > RotateButton_X && e.button.x <= (RotateButton_X + RotateButtonSize) 
@@ -154,6 +166,8 @@ void place_ships(SDL_Renderer *ren){
 					continue;
 				}
 
+                int x = (e.button.x - BoardOffset_X) / CELL_SIZE;
+                int y = (e.button.y - BoardOffset_Y) / CELL_SIZE;
                 ship[i].x = x;
                 ship[i].y = y;
                 if(placeShip(i)){
@@ -164,19 +178,20 @@ void place_ships(SDL_Renderer *ren){
                 }
             }
         }
-		render_place_ships(ren,i);
+		render_place_ships(i);
     }
 
     printf("Exiting place_ships()\n");
 }
 
-void play(SDL_Renderer *ren){
+void play(){
 	printf("Entering play()\n");
 	int running = 1;
 	SDL_Event e;
 	while(running){
 		while(SDL_PollEvent(&e)){
-			if(e.type == SDL_QUIT || totalHealth == 0) running = 0;
+			if(e.type == SDL_QUIT) exit_game();
+			if(totalHealth == 0) running = 0;
 			if(e.type == SDL_MOUSEBUTTONDOWN){
 				if(e.button.x < BoardOffset_X || e.button.x >= (BoardOffset_X+COLS*CELL_SIZE) || e.button.y < BoardOffset_Y || e.button.y >= BoardOffset_Y + ROWS*CELL_SIZE){
 					printf("Out of Bounds\n");
@@ -188,7 +203,7 @@ void play(SDL_Renderer *ren){
 				}
 			}
 		}
-		render_play(ren);
+		render_play();
 	}
 	printf("Exiting play()\n");
 	return;
@@ -206,13 +221,13 @@ int main(){
 		SDL_Quit();
 		return 1;
 	}
-	SDL_Window *win = SDL_CreateWindow("Window", 100, 100, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
+	win = SDL_CreateWindow("Window", 100, 100, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
 	if(!win){
 		printf("SDL_Create_Window_Error: %s\n", SDL_GetError());
 		SDL_Quit();
 		return 1;
 	}
-	SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+	ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	if(!ren){
 		SDL_DestroyWindow(win);
 		printf("SDL_Create_Renderer_Error: %s\n", SDL_GetError());
@@ -222,23 +237,18 @@ int main(){
 
 	//-------------------------------------------------------
 	
-	for(int i = 0; i<TEX_LEN; i++) 
-		textures[i] = loadTexture(texture_files[i], ren);
+	load_textures();
 
 	initialize();
-	place_ships(ren);
-	play(ren);
+	place_ships();
+	play();
 
-	for(int i = 0; i<TEX_LEN; i++)
-		SDL_DestroyTexture(textures[i]);
-	SDL_DestroyRenderer(ren);
-	SDL_DestroyWindow(win);
-	SDL_Quit();
+	exit_game();
 	return 0;
 }
 //============================================================>
-void gen_board(SDL_Renderer *ren){
-	disp_grid(ren);
+void gen_board(){
+	disp_grid();
 	for(int y = 0; y<ROWS; y++)
 	for(int x = 0; x<COLS; x++){
 		SDL_Rect rect = {
@@ -248,10 +258,8 @@ void gen_board(SDL_Renderer *ren){
 			CELL_SIZE
 		};
 		switch(board[y][x].status){
-			case '#': break;
 			case '@': SDL_RenderCopy(ren, textures[TEX_HIT], NULL, &rect); break;
 			case 'X': SDL_RenderCopy(ren, textures[TEX_MISS], NULL, &rect); break;
-			case 'F': break;
 		}
 	}
 	for(int s = 0; s<NUM_SHIPS; s++){
@@ -263,20 +271,21 @@ void gen_board(SDL_Renderer *ren){
 		}
 	}
 }
-SDL_Texture *loadTexture(const char *file, SDL_Renderer *ren){
-	char path[FILE_NAME_LEN+10];
-	snprintf(path, sizeof(path), "./assets/%s", file);
-	SDL_Surface *temp_Surface = IMG_Load(path);
-	if(!temp_Surface){
-		printf("IMG_Load_Error: %s\n", IMG_GetError());
-		return NULL;
-	}
+void load_textures(){
+	for(int i = 0; i<TEX_LEN; i++) {
+		char path[FILE_NAME_LEN+10];
+		snprintf(path, sizeof(path), "./assets/%s", texture_files[i]);
+		SDL_Surface *temp_Surface = IMG_Load(path);
+		if(!temp_Surface){
+			printf("IMG_Load_Error: %s\n", IMG_GetError());
+			continue;
+		}
 
-	SDL_Texture *tex = SDL_CreateTextureFromSurface(ren, temp_Surface);
-	SDL_FreeSurface(temp_Surface);
-	return tex;
+		textures[i] = SDL_CreateTextureFromSurface(ren, temp_Surface);
+		SDL_FreeSurface(temp_Surface);
+	}
 }
-void disp_grid(SDL_Renderer *ren){
+void disp_grid(){
 	SDL_SetRenderDrawColor(ren, 255,255,255,255);
 	for(int c = 0; c <= COLS; c++){
 		SDL_RenderDrawLine(ren, BoardOffset_X + c*CELL_SIZE, BoardOffset_Y, BoardOffset_X + c*CELL_SIZE, BoardOffset_Y + ROWS*CELL_SIZE);
@@ -284,4 +293,12 @@ void disp_grid(SDL_Renderer *ren){
 	for(int r = 0; r <= ROWS; r++){
 		SDL_RenderDrawLine(ren, BoardOffset_X, BoardOffset_Y + r*CELL_SIZE, BoardOffset_X + COLS*CELL_SIZE, BoardOffset_Y + r*CELL_SIZE);
 	}
+}
+void exit_game(){
+	for(int i = 0; i<TEX_LEN; i++)
+		SDL_DestroyTexture(textures[i]);
+	SDL_DestroyRenderer(ren);
+	SDL_DestroyWindow(win);
+	SDL_Quit();
+	exit(1);
 }

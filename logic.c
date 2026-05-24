@@ -26,6 +26,8 @@ void initialize(){
 }
 
 void shoot(int y, int x){
+	if(y<0 || y>ROWS || x<0 || x>COLS)
+		return;
 	if(board[y][x].shot == true){
 		printf("Already Shot\n");
 		return;

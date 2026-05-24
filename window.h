@@ -17,13 +17,24 @@
 #define RotateButton_Y 10
 #define RotateButtonSize 50
 
+#define InfoBox_X 300
+#define InfoBox_Y 10
+#define InfoBox_Width 250
+#define InfoBox_Height 100
+
 #define FILE_NAME_LEN 20
 
 //--Functions-
-void gen_board(SDL_Renderer *ren);
-SDL_Texture *loadTexture(const char *file, SDL_Renderer *ren);
+void load_textures();
+void gen_board();
 void get_ship_size(int shipIndex, int *h, int *w);
-void place_ships(SDL_Renderer *ren);
-void play(SDL_Renderer *ren);
-void disp_grid(SDL_Renderer *ren);
+void place_ships();
+void play();
+void disp_grid();
+void get_ship_rect(int s, int x, int y, SDL_Rect *rect, int *tex);
+void disp_hover(int s, int hoverRow, int hoverCol);
+void disp_placed_ship(int s);
+void render_place_ships(int i);
+void render_play();
+void exit_game();
 #endif

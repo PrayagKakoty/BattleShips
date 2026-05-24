@@ -1,3 +1,4 @@
+//config.c
 #include"config.h"
 
 struct ShipType shipType[NUM_SHIP_TYPES] = {
